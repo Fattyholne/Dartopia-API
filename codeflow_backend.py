@@ -54,7 +54,7 @@ socketio = SocketIO(
 
 # Directly set API key (hardcoded for development purposes only)
 # In production, use environment variables or secure storage
-GEMINI_API_KEY = "AIzaSyBhZ7Dst3Xd2xRoPzZnY8dkqoXTSpx-5R8"
+GEMINI_API_KEY = "Your-API-Key"
 
 # Set Google Cloud credentials path for text-to-speech API
 # You should replace this with the path to your actual credentials file
