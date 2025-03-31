@@ -14,7 +14,21 @@ const Settings = () => {
   const [model, setModel] = useState("gemini-pro");
   const [useVision, setUseVision] = useState(true);
   const [autoTitle, setAutoTitle] = useState(true);
-  
+  const [openAIKey, setOpenAIKey] = useState(localStorage.getItem("openai_api_key") || "");
+  const [anthropicKey, setAnthropicKey] = useState(localStorage.getItem("anthropic_api_key") || "");
+
+  const handleOpenAIKeyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setOpenAIKey(value);
+    localStorage.setItem("openai_api_key", value);
+  };
+
+  const handleAnthropicKeyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setAnthropicKey(value);
+    localStorage.setItem("anthropic_api_key", value);
+  };
+
   const handleSaveApiSettings = () => {
     // This would save to localStorage or another persistent storage
     toast({
@@ -88,6 +102,34 @@ const Settings = () => {
             onCheckedChange={setUseVision}
           />
           <Label htmlFor="use-vision">Enable Vision capabilities</Label>
+        </div>
+
+        <div className="space-y-6">
+          <div className="space-y-2">
+            <h2 className="text-lg font-semibold">API Configuration</h2>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="openai-key">OpenAI API Key</Label>
+                <Input
+                  id="openai-key"
+                  type="password"
+                  value={openAIKey}
+                  onChange={handleOpenAIKeyChange}
+                  placeholder="sk-..."
+                />
+              </div>
+              <div>
+                <Label htmlFor="anthropic-key">Anthropic API Key</Label>
+                <Input
+                  id="anthropic-key"
+                  type="password"
+                  value={anthropicKey}
+                  onChange={handleAnthropicKeyChange}
+                  placeholder="sk-ant-..."
+                />
+              </div>
+            </div>
+          </div>
         </div>
         
         <Button onClick={handleSaveApiSettings} className="w-full">

@@ -5,9 +5,10 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
 import { Link } from "@/components/ui/link";
-import { Info, Plus, Trash2 } from "lucide-react";
+import { Info, Plus, Trash2, AlertTriangle } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useLocalStorage } from "@/hooks/use-local-storage";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface GoogleAIPanelProps {
   isVisible: boolean;
@@ -36,62 +37,92 @@ const GoogleAIPanel: React.FC<GoogleAIPanelProps> = ({ isVisible }) => {
   const [newLinkTitle, setNewLinkTitle] = useState("");
   const [newLinkUrl, setNewLinkUrl] = useState("");
 
-  const handleSaveApiKey = () => {
-    localStorage.setItem("google_ai_api_key", apiKey);
-    localStorage.setItem("vertex_ai_project_id", projectId);
-    localStorage.setItem("vertex_ai_location", location);
-    
-    toast({
-      title: "Settings Saved",
-      description: "Your Google AI and Vertex AI settings have been saved locally.",
-    });
+  const [apiKeyValid, setApiKeyValid] = useState<boolean | null>(null);
+  const [validationError, setValidationError] = useState<string | null>(null);
+
+  const validateApiKeyFormat = (key: string): { isValid: boolean; error?: string } => {
+    if (!key) {
+      return { isValid: false, error: "API key is required" };
+    }
+
+    if (!key.startsWith('AI')) {
+      return { isValid: false, error: "API key must start with 'AI'" };
+    }
+
+    if (key.length !== 39) {
+      return { isValid: false, error: "API key must be exactly 39 characters long" };
+    }
+
+    const validFormat = /^AI[a-zA-Z0-9_-]{37}$/.test(key);
+    if (!validFormat) {
+      return { isValid: false, error: "API key contains invalid characters" };
+    }
+
+    return { isValid: true };
   };
-  
-  const handleAddCustomLink = () => {
-    if (!newLinkTitle.trim() || !newLinkUrl.trim()) {
+
+  const handleSaveApiKey = async () => {
+    // First validate format
+    const validation = validateApiKeyFormat(apiKey);
+    if (!validation.isValid) {
+      setApiKeyValid(false);
+      setValidationError(validation.error);
       toast({
-        title: "Error",
-        description: "Please enter both a title and URL for your custom link.",
+        title: "API Key Error",
+        description: validation.error,
         variant: "destructive"
       });
       return;
     }
-    
-    const newLink: CustomLink = {
-      id: Date.now().toString(),
-      title: newLinkTitle,
-      url: newLinkUrl
-    };
-    
-    setCustomLinks([...customLinks, newLink]);
-    setNewLinkTitle("");
-    setNewLinkUrl("");
-    
-    toast({
-      title: "Link Added",
-      description: `Added "${newLinkTitle}" to your custom links.`
-    });
-  };
-  
-  const handleDeleteCustomLink = (id: string) => {
-    setCustomLinks(customLinks.filter(link => link.id !== id));
-    
-    toast({
-      title: "Link Removed",
-      description: "The custom link has been removed."
-    });
-  };
 
-  if (!isVisible) return null;
+    try {
+      // Verify key with backend
+      const response = await fetch('/api/models');
+      const data = await response.json();
+      
+      if (data.status === 'error') {
+        setApiKeyValid(false);
+        const errorMessage = data.error.includes("API_KEY_INVALID") 
+          ? "The API key is not authorized for Google AI services. Please check your credentials."
+          : data.error;
+        setValidationError(errorMessage);
+        toast({
+          title: "API Key Error",
+          description: errorMessage,
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      // Save valid key
+      localStorage.setItem("google_ai_api_key", apiKey);
+      localStorage.setItem("vertex_ai_project_id", projectId);
+      localStorage.setItem("vertex_ai_location", location);
+      
+      setApiKeyValid(true);
+      setValidationError(null);
+      
+      toast({
+        title: "Settings Saved",
+        description: "Your Google AI settings have been saved and validated.",
+      });
+    } catch (error) {
+      setApiKeyValid(false);
+      const errorMessage = "Failed to validate API key. Please check your connection.";
+      setValidationError(errorMessage);
+      toast({
+        title: "Validation Error",
+        description: errorMessage,
+        variant: "destructive"
+      });
+    }
+  };
 
   return (
-    <div className="space-y-4">
-      <h3 className="text-sm font-medium">Google AI Integration</h3>
-      
-      <Tabs defaultValue="api-key" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+    <div className={isVisible ? "space-y-4" : "hidden"}>
+      <Tabs defaultValue="api-key">
+        <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="api-key">API Settings</TabsTrigger>
-          <TabsTrigger value="integrations">Integrations</TabsTrigger>
           <TabsTrigger value="custom-links">Custom Links</TabsTrigger>
         </TabsList>
         
@@ -102,6 +133,20 @@ const GoogleAIPanel: React.FC<GoogleAIPanelProps> = ({ isVisible }) => {
                 Configure your Google AI and Vertex AI settings.
               </p>
               
+              {validationError && (
+                <Alert variant="destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>{validationError}</AlertDescription>
+                </Alert>
+              )}
+              
+              {apiKeyValid === true && (
+                <Alert>
+                  <Info className="h-4 w-4" />
+                  <AlertDescription>API key is valid and working correctly.</AlertDescription>
+                </Alert>
+              )}
+              
               <div className="space-y-2">
                 <div className="space-y-1">
                   <label className="text-xs font-medium">Google AI API Key</label>
@@ -109,7 +154,11 @@ const GoogleAIPanel: React.FC<GoogleAIPanelProps> = ({ isVisible }) => {
                     type="password"
                     placeholder="Enter your API key"
                     value={apiKey}
-                    onChange={(e) => setApiKey(e.target.value)}
+                    onChange={(e) => {
+                      setApiKey(e.target.value);
+                      setApiKeyValid(null);
+                      setValidationError(null);
+                    }}
                   />
                 </div>
                 
@@ -138,7 +187,7 @@ const GoogleAIPanel: React.FC<GoogleAIPanelProps> = ({ isVisible }) => {
                   className="w-full"
                   onClick={handleSaveApiKey}
                 >
-                  Save Settings
+                  Save & Validate Settings
                 </Button>
               </div>
               
@@ -148,80 +197,14 @@ const GoogleAIPanel: React.FC<GoogleAIPanelProps> = ({ isVisible }) => {
                 <div className="flex items-start gap-2">
                   <Info className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
                   <p className="text-xs text-muted-foreground">
-                    These settings are used to connect to Vertex AI's Gemini endpoint.
-                    Your project must have the Vertex AI API enabled.
+                    Your Google API key should start with 'AI' and be 39 characters long.
+                    Make sure you have the Vertex AI API enabled in your Google Cloud project.
                   </p>
                 </div>
                 
                 <p className="text-xs text-muted-foreground">
-                  This information will be stored in your browser's local storage. For better security,
-                  consider connecting to Supabase and storing your key there.
+                  Need help? Visit the <Link href="https://cloud.google.com/vertex-ai/docs/start/cloud-console" target="_blank">Google Cloud Console</Link> to set up your project.
                 </p>
-              </div>
-            </div>
-          </Card>
-        </TabsContent>
-        
-        <TabsContent value="integrations">
-          <Card className="p-4">
-            <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                Quick links to Google's AI development resources and tools.
-              </p>
-              
-              <div className="space-y-2">
-                <h4 className="text-xs font-medium uppercase text-muted-foreground">Google Cloud & Vertex AI</h4>
-                <div className="grid gap-2">
-                  <Link href="https://console.cloud.google.com/" target="_blank" rel="noopener noreferrer" className="text-sm">
-                    Google Cloud Console
-                  </Link>
-                  <Link href="https://console.cloud.google.com/vertex-ai" target="_blank" rel="noopener noreferrer" className="text-sm">
-                    Vertex AI Console
-                  </Link>
-                  <Link href="https://console.cloud.google.com/vertex-ai/model-garden" target="_blank" rel="noopener noreferrer" className="text-sm">
-                    Vertex AI Model Garden
-                  </Link>
-                  <Link href="https://aistudio.google.com/" target="_blank" rel="noopener noreferrer" className="text-sm">
-                    Google AI Studio
-                  </Link>
-                </div>
-              </div>
-              
-              <Separator />
-              
-              <div className="space-y-2">
-                <h4 className="text-xs font-medium uppercase text-muted-foreground">Notebooks & Colab</h4>
-                <div className="grid gap-2">
-                  <Link href="https://colab.research.google.com/" target="_blank" rel="noopener noreferrer" className="text-sm">
-                    Google Colab
-                  </Link>
-                  <Link href="https://console.cloud.google.com/vertex-ai/colab/notebooks" target="_blank" rel="noopener noreferrer" className="text-sm">
-                    Vertex AI Notebooks
-                  </Link>
-                  <Link href="https://colab.research.google.com/github/googlecolab/colabtools/blob/main/notebooks/colab-github-demo.ipynb" target="_blank" rel="noopener noreferrer" className="text-sm">
-                    Colab GitHub Integration
-                  </Link>
-                </div>
-              </div>
-              
-              <Separator />
-              
-              <div className="space-y-2">
-                <h4 className="text-xs font-medium uppercase text-muted-foreground">Development Resources</h4>
-                <div className="grid gap-2">
-                  <Link href="https://cloud.google.com/vertex-ai/docs/generative-ai/start/quickstarts/api-quickstart" target="_blank" rel="noopener noreferrer" className="text-sm">
-                    Vertex AI API Quickstart
-                  </Link>
-                  <Link href="https://ai.google.dev/tutorials/quickstart" target="_blank" rel="noopener noreferrer" className="text-sm">
-                    Gemini API Guide
-                  </Link>
-                  <Link href="https://github.com/GoogleCloudPlatform/vertex-ai-samples" target="_blank" rel="noopener noreferrer" className="text-sm">
-                    Vertex AI Code Samples
-                  </Link>
-                  <Link href="https://code.visualstudio.com/" target="_blank" rel="noopener noreferrer" className="text-sm">
-                    Visual Studio Code
-                  </Link>
-                </div>
               </div>
             </div>
           </Card>
@@ -230,60 +213,57 @@ const GoogleAIPanel: React.FC<GoogleAIPanelProps> = ({ isVisible }) => {
         <TabsContent value="custom-links">
           <Card className="p-4">
             <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                Add your own custom links for quick access to frequently used tools and resources.
-              </p>
-              
               <div className="space-y-2">
+                <label className="text-xs font-medium">Add Custom Link</label>
                 <div className="flex gap-2">
                   <Input
-                    type="text"
-                    placeholder="Link Title"
+                    placeholder="Title"
                     value={newLinkTitle}
                     onChange={(e) => setNewLinkTitle(e.target.value)}
-                    className="flex-1"
                   />
                   <Input
-                    type="text"
-                    placeholder="URL (https://...)"
+                    placeholder="URL"
                     value={newLinkUrl}
                     onChange={(e) => setNewLinkUrl(e.target.value)}
-                    className="flex-1"
                   />
                   <Button 
+                    variant="outline" 
                     size="icon"
-                    onClick={handleAddCustomLink}
-                    disabled={!newLinkTitle.trim() || !newLinkUrl.trim()}
+                    onClick={() => {
+                      if (newLinkTitle && newLinkUrl) {
+                        setCustomLinks([
+                          ...customLinks,
+                          {
+                            id: Date.now().toString(),
+                            title: newLinkTitle,
+                            url: newLinkUrl
+                          }
+                        ]);
+                        setNewLinkTitle('');
+                        setNewLinkUrl('');
+                      }
+                    }}
                   >
                     <Plus className="h-4 w-4" />
                   </Button>
                 </div>
-                
-                <Separator className="my-2" />
-                
-                {customLinks.length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-2">
-                    No custom links added yet. Add some links above.
-                  </p>
-                ) : (
-                  <div className="space-y-2">
-                    {customLinks.map(link => (
-                      <div key={link.id} className="flex items-center justify-between bg-muted/50 rounded-md p-2">
-                        <Link href={link.url} target="_blank" rel="noopener noreferrer" className="text-sm truncate max-w-[80%]">
-                          {link.title}
-                        </Link>
-                        <Button 
-                          variant="ghost" 
-                          size="icon"
-                          onClick={() => handleDeleteCustomLink(link.id)}
-                          className="h-6 w-6"
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    ))}
+              </div>
+              
+              <div className="space-y-2">
+                {customLinks.map(link => (
+                  <div key={link.id} className="flex items-center justify-between">
+                    <Link href={link.url} target="_blank">{link.title}</Link>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => {
+                        setCustomLinks(customLinks.filter(l => l.id !== link.id));
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
-                )}
+                ))}
               </div>
             </div>
           </Card>

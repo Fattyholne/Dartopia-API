@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { Conversation, Message } from "@/pages/Index";
+import { Conversation, Message, MessageFormatting } from "@/pages/Index";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -50,19 +50,21 @@ const ConversationPanel: React.FC<ConversationPanelProps> = ({
   }
 
   return (
-    <div className="space-y-6 mb-6"> {/* Increased spacing between messages */}
+    <div className="space-y-6 mb-6">
       {conversation.messages.length === 0 ? (
         <EmptyConversation />
       ) : (
-        conversation.messages.map((message, index) => (
-          <MessageItem
-            key={message.id}
-            message={message}
-            isLast={index === conversation.messages.length - 1}
-          />
-        ))
+        <div className="flex flex-col gap-6">
+          {conversation.messages.map((message, index) => (
+            <MessageItem
+              key={message.id}
+              message={message}
+              isLast={index === conversation.messages.length - 1}
+            />
+          ))}
+        </div>
       )}
-      <div ref={messageEndRef} className="h-4" /> {/* Added height to ensure proper scrolling */}
+      <div ref={messageEndRef} className="h-4" />
     </div>
   );
 };
@@ -81,44 +83,78 @@ const EmptyConversation = () => (
 const MessageItem: React.FC<{ message: Message; isLast: boolean }> = ({ message, isLast }) => {
   const isUser = message.role === "user";
   
+  const formatContent = (content: string) => {
+    // Split into paragraphs first
+    const paragraphs = content.split('\n');
+    
+    // Process each paragraph to add line breaks every ~80 characters at word boundaries
+    return paragraphs.map(paragraph => {
+      const words = paragraph.split(' ');
+      const lines = [];
+      let currentLine = [];
+      let currentLineLength = 0;
+      
+      for (let word of words) {
+        if (currentLineLength + word.length > 80) {
+          lines.push(currentLine.join(' '));
+          currentLine = [word];
+          currentLineLength = word.length;
+        } else {
+          currentLine.push(word);
+          currentLineLength += word.length + 1; // +1 for space
+        }
+      }
+      if (currentLine.length > 0) {
+        lines.push(currentLine.join(' '));
+      }
+      return lines.join('\n');
+    }).join('\n\n');
+  };
+  
   return (
     <div className={cn(
-      "flex gap-6", /* Increased gap */
+      "flex gap-6",
       isUser ? "flex-row" : "flex-row"
     )}>
       <div className={cn(
-        "flex h-10 w-10 shrink-0 select-none items-center justify-center rounded-md border shadow-sm", /* Larger avatar */
+        "flex h-10 w-10 shrink-0 select-none items-center justify-center rounded-md border shadow-sm",
         isUser ? "bg-background" : "bg-primary"
       )}>
         {isUser ? (
-          <User className="h-5 w-5" /> /* Larger icon */
+          <User className="h-5 w-5" />
         ) : (
-          <Bot className="h-5 w-5 text-primary-foreground" /> /* Larger icon */
+          <Bot className="h-5 w-5 text-primary-foreground" />
         )}
       </div>
       
-      <div className="flex-1 space-y-2">
+      <div className="flex-1 min-w-0 max-w-[85%]"> {/* Added min-width and increased max-width */}
         <Card className={cn(
-          "p-6 overflow-hidden", /* More padding */
+          "p-6 overflow-hidden break-words whitespace-pre-wrap relative", /* Added relative for potential loading indicator */
           message.status === "error" && "border-destructive"
         )}>
-          <div className="prose prose-lg dark:prose-invert max-w-none w-full break-words"> {/* Larger text via prose-lg */}
+          <div className="prose prose-lg dark:prose-invert w-full break-words"
+            style={message.formatting ? {
+              fontSize: message.formatting.fontSize,
+              fontFamily: message.formatting.fontFamily,
+              color: message.formatting.color
+            } : undefined}
+          >
             {message.status === "sending" && isLast ? (
               <>
-                <ReactMarkdown>{message.content}</ReactMarkdown>
-                <div className="mt-2 flex items-center">
-                  <Skeleton className="h-5 w-5 rounded-full animate-pulse bg-muted" /> {/* Larger dots */}
-                  <Skeleton className="h-5 w-5 rounded-full animate-pulse bg-muted ml-1" />
-                  <Skeleton className="h-5 w-5 rounded-full animate-pulse bg-muted ml-1" />
+                <ReactMarkdown>{formatContent(message.content)}</ReactMarkdown>
+                <div className="absolute bottom-4 right-4 flex items-center gap-1">
+                  <Skeleton className="h-2 w-2 rounded-full animate-pulse bg-muted" />
+                  <Skeleton className="h-2 w-2 rounded-full animate-pulse bg-muted animation-delay-200" />
+                  <Skeleton className="h-2 w-2 rounded-full animate-pulse bg-muted animation-delay-400" />
                 </div>
               </>
             ) : (
-              <ReactMarkdown>{message.content || "No content available"}</ReactMarkdown>
+              <ReactMarkdown className="break-words">{formatContent(message.content || "No content available")}</ReactMarkdown>
             )}
           </div>
           
           {message.tokenCount && (
-            <div className="mt-3 text-sm text-muted-foreground"> {/* Larger and more spaced */}
+            <div className="mt-3 text-sm text-muted-foreground">
               Tokens: {message.tokenCount}
             </div>
           )}

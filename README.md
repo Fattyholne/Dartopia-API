@@ -1,69 +1,68 @@
-# Welcome to your Lovable project
+# Dartopia AI - Intelligent Dartboard Companion
 
-## Project info
+Dartopia AI is an intelligent dartboard companion system that combines computer vision, AI, and real-time analytics to enhance your dart playing experience.
 
-**URL**: https://lovable.dev/projects/6e1367bc-0256-43aa-a286-4c1ee6deabc3
+## Project Structure
 
-## How can I edit this code?
+The project consists of two main components:
 
-There are several ways of editing your application.
+1. **Dartopia-API**: A Flask-SocketIO backend with Google Gemini AI integration for real-time conversation and screen sharing analysis.
 
-**Use Lovable**
+2. **Dartopia-beta**: The main dartboard tracking and scoring system with:
+   - Computer vision for dart detection
+   - Player profiles and analytics
+   - Game modes (X01, training, tournament)
+   - Voice-based AI coaching
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/6e1367bc-0256-43aa-a286-4c1ee6deabc3) and start prompting.
+## Getting Started
 
-Changes made via Lovable will be committed automatically to this repo.
+### Backend (Dartopia-API)
 
-**Use your preferred IDE**
+1. Install Python dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+2. Run the backend server:
+   ```bash
+   python codeflow_backend.py
+   ```
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+3. The server will be available at `http://localhost:5000`
 
-Follow these steps:
+### Frontend
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+1. Install Node.js dependencies:
+   ```bash
+   npm install
+   # or
+   bun install
+   ```
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+2. Start the development server:
+   ```bash
+   npm run dev
+   # or
+   bun run dev
+   ```
 
-# Step 3: Install the necessary dependencies.
-npm i
+3. Open `http://localhost:8080` in your browser
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
+## Features
 
-**Edit a file directly in GitHub**
+- Real-time dart detection and scoring
+- AI-powered coaching and analysis
+- Multiple game modes
+- Player profiles and statistics
+- Social features and tournaments
+- Google Gemini AI integration for advanced analysis
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## Technology Stack
 
-**Use GitHub Codespaces**
+- **Backend**: Python, Flask, Flask-SocketIO, Google Gemini AI
+- **Frontend**: TypeScript, React, Vite, TailwindCSS
+- **AI/ML**: Computer Vision for dart detection, Pose estimation
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## License
 
-## What technologies are used for this project?
-
-This project is built with .
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/6e1367bc-0256-43aa-a286-4c1ee6deabc3) and click on Share -> Publish.
-
-## I want to use a custom domain - is that possible?
-
-We don't support custom domains (yet). If you want to deploy your project under your own domain then we recommend using Netlify. Visit our docs for more details: [Custom domains](https://docs.lovable.dev/tips-tricks/custom-domain/)
+MIT License

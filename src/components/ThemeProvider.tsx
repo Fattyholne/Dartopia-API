@@ -1,74 +1,60 @@
-import * as React from "react";
-import { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect } from "react";
+import { useTheme as useThemeHook } from "@/hooks/use-theme";
 
-type Theme = "dark" | "light" | "system";
+// Import the ThemeType from use-theme.tsx to ensure consistency
+type ThemeType = 'light' | 'soft-light' | 'dark' | 'midnight' | 'neon-blue' | 'neon-purple' | 'high-contrast';
 
-type ThemeProviderProps = {
-  children: React.ReactNode;
-  defaultTheme?: Theme;
-  storageKey?: string;
+// Update context type to match the actual return type from useTheme
+type ThemeContextType = {
+  theme: ThemeType;
+  setTheme: (value: ThemeType | ((val: ThemeType) => ThemeType)) => void;
 };
 
-type ThemeProviderState = {
-  theme: Theme;
-  setTheme: (theme: Theme) => void;
-};
+const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
-const initialState: ThemeProviderState = {
-  theme: "system",
-  setTheme: () => null,
-};
-
-const ThemeProviderContext = createContext<ThemeProviderState>(initialState);
-
-export function ThemeProvider({
-  children,
-  defaultTheme = "system",
-  storageKey = "ui-theme",
-  ...props
-}: ThemeProviderProps) {
-  const [theme, setTheme] = useState<Theme>(
-    () => (localStorage.getItem(storageKey) as Theme) || defaultTheme
-  );
+export function ThemeProvider({ children }: { children: React.ReactNode }) {
+  const { theme, setTheme } = useThemeHook();
 
   useEffect(() => {
-    const root = window.document.documentElement;
+    const root = document.documentElement;
     
-    root.classList.remove("light", "dark");
+    // Remove all theme classes first
+    root.classList.remove('dark', 'soft-light', 'neon-theme', 'neon-neon-blue', 'neon-neon-purple', 'high-focus');
     
-    if (theme === "system") {
-      const systemTheme = window.matchMedia("(prefers-color-scheme: dark)").matches
-        ? "dark"
-        : "light";
-      
-      root.classList.add(systemTheme);
-      return;
+    // Set the theme
+    root.setAttribute('data-theme', theme);
+    
+    // Apply dark class if needed
+    if (theme === 'dark' || theme === 'midnight') {
+      root.classList.add('dark');
     }
     
-    root.classList.add(theme);
+    // Apply neon classes if needed
+    if (theme === 'neon-blue' || theme === 'neon-purple') {
+      root.classList.add('neon-theme');
+      root.classList.add(`neon-${theme}`);
+      root.classList.add('dark'); // Neon themes use dark as a base
+    }
+    
+    // Apply high contrast specific settings
+    if (theme === 'high-contrast') {
+      root.classList.add('high-focus');
+      root.classList.add('neon-theme');
+      root.classList.add('dark');
+    }
   }, [theme]);
 
-  const value = {
-    theme,
-    setTheme: (theme: Theme) => {
-      localStorage.setItem(storageKey, theme);
-      setTheme(theme);
-      console.log('Theme changed to:', theme);
-    },
-  };
-
   return (
-    <ThemeProviderContext.Provider {...props} value={value}>
+    <ThemeContext.Provider value={{ theme, setTheme }}>
       {children}
-    </ThemeProviderContext.Provider>
+    </ThemeContext.Provider>
   );
 }
 
-export const useTheme = () => {
-  const context = useContext(ThemeProviderContext);
-
-  if (context === undefined)
-    throw new Error("useTheme must be used within a ThemeProvider");
-
+export const useThemeContext = () => {
+  const context = useContext(ThemeContext);
+  if (context === undefined) {
+    throw new Error('useThemeContext must be used within a ThemeProvider');
+  }
   return context;
 };

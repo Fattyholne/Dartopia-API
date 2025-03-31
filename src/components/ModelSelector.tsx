@@ -4,12 +4,18 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 
+interface BackendModel {
+  name: string;
+  display_name: string;
+  supported_generation_methods: string[];
+}
+
 interface ModelSelectorProps {
   selectedModel: string;
   onChange: (model: string) => void;
   useContextChunking?: boolean;
   onToggleContextChunking?: (enabled: boolean) => void;
-  availableModels?: any[];
+  availableModels?: BackendModel[];
 }
 
 interface AIModel {
@@ -23,18 +29,20 @@ interface AIModel {
 // Default models to show when backend models aren't available
 const defaultModels: AIModel[] = [
   // Google/Vertex AI Models
-  { id: "gemini-pro", name: "Gemini Pro", provider: "Google" },
-  { id: "gemini-pro-vision", name: "Gemini Pro Vision", provider: "Google" },
+  { id: "gemini-2.0-pro-exp", name: "Gemini 2.0 Pro (Experimental)", provider: "Google" },
+  { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash", provider: "Google" },
+  { id: "gemini-2.0-flash-lite", name: "Gemini 2.0 Flash Lite", provider: "Google" },
   { id: "gemini-1.5-pro", name: "Gemini 1.5 Pro", provider: "Google" },
   { id: "gemini-1.5-flash", name: "Gemini 1.5 Flash", provider: "Google" },
-  { id: "vertex-text-bison", name: "Vertex Text Bison", provider: "Google" },
-  { id: "vertex-code-bison", name: "Vertex Code Bison", provider: "Google" },
+  { id: "gemini-1.5-flash-8b", name: "Gemini 1.5 Flash 8B", provider: "Google" },
+  { id: "gemini-pro-vision", name: "Gemini Pro Vision", provider: "Google" },
+  { id: "text-embedding-004", name: "Text Embedding", provider: "Google" },
   
-  // OpenAI Models
+  // OpenAI Models (keeping these as they require API key)
   { id: "gpt-3.5-turbo", name: "GPT-3.5 Turbo", provider: "OpenAI", requiresApiKey: true },
-  { id: "gpt-4o", name: "GPT-4o", provider: "OpenAI", requiresApiKey: true },
+  { id: "gpt-4", name: "GPT-4", provider: "OpenAI", requiresApiKey: true },
   
-  // Anthropic Models
+  // Anthropic Models (keeping these as they require API key)
   { id: "claude-3-opus", name: "Claude 3 Opus", provider: "Anthropic", requiresApiKey: true },
   { id: "claude-3-sonnet", name: "Claude 3 Sonnet", provider: "Anthropic", requiresApiKey: true },
   { id: "claude-3-haiku", name: "Claude 3 Haiku", provider: "Anthropic", requiresApiKey: true }
@@ -47,36 +55,44 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
   onToggleContextChunking,
   availableModels = []
 }) => {
-  // Check if API keys are set for the various providers
   const hasGoogleApiKey = true; // Default to true since we're using the backend
   const hasOpenAIApiKey = !!localStorage.getItem("openai_api_key");
   const hasAnthropicApiKey = !!localStorage.getItem("anthropic_api_key");
   
   const getModelAvailability = (model: AIModel): boolean => {
+    if (!model.requiresApiKey) return true;
     if (model.provider === "Google") return hasGoogleApiKey;
     if (model.provider === "OpenAI") return hasOpenAIApiKey;
     if (model.provider === "Anthropic") return hasAnthropicApiKey;
-    return true;
+    return false;
   };
 
   // Convert backend models to our format if they exist
   const backendModels: AIModel[] = availableModels.length > 0 
     ? availableModels.map(model => ({
         id: model.name,
-        name: model.display_name || model.name.split('/').pop(),
-        provider: "Google", // All models from the backend are Google models
-        isAvailable: true
+        name: model.display_name || model.name.split('/').pop() || model.name,
+        provider: "Google",
+        isAvailable: model.supported_generation_methods.includes('generateContent')
       }))
     : [];
   
-  // Use backend models if available, otherwise fall back to default models
+  // Merge backend models with default models, prioritizing backend models
   const models = backendModels.length > 0 
     ? [...backendModels, ...defaultModels.filter(m => m.provider !== "Google")]
     : defaultModels;
-  
+
   return (
     <div className="space-y-4">
-      <h3 className="text-sm font-medium">Model</h3>
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-medium">Model</h3>
+        {!hasOpenAIApiKey || !hasAnthropicApiKey ? (
+          <span className="text-xs text-muted-foreground">
+            Configure API keys in Settings to access more models
+          </span>
+        ) : null}
+      </div>
+      
       <Select value={selectedModel} onValueChange={onChange}>
         <SelectTrigger>
           <SelectValue placeholder="Select a model" />
@@ -90,13 +106,13 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
               .map((model) => (
                 <SelectItem 
                   key={model.id} 
-                  value={model.id} 
-                  disabled={model.requiresApiKey && !getModelAvailability(model)}
+                  value={model.id}
+                  disabled={model.isAvailable === false}
                 >
                   <div className="flex items-center justify-between w-full">
                     <span>{model.name}</span>
-                    {model.requiresApiKey && !getModelAvailability(model) && (
-                      <Badge variant="outline" className="ml-2 text-xs">Requires API Key</Badge>
+                    {model.isAvailable === false && (
+                      <Badge variant="outline" className="ml-2 text-xs">Not Available</Badge>
                     )}
                   </div>
                 </SelectItem>
@@ -110,11 +126,11 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
                 <SelectItem 
                   key={model.id} 
                   value={model.id} 
-                  disabled={model.requiresApiKey && !getModelAvailability(model)}
+                  disabled={!getModelAvailability(model)}
                 >
                   <div className="flex items-center justify-between w-full">
                     <span>{model.name}</span>
-                    {model.requiresApiKey && !getModelAvailability(model) && (
+                    {!getModelAvailability(model) && (
                       <Badge variant="outline" className="ml-2 text-xs">Requires API Key</Badge>
                     )}
                   </div>
@@ -129,11 +145,11 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
                 <SelectItem 
                   key={model.id} 
                   value={model.id} 
-                  disabled={model.requiresApiKey && !getModelAvailability(model)}
+                  disabled={!getModelAvailability(model)}
                 >
                   <div className="flex items-center justify-between w-full">
                     <span>{model.name}</span>
-                    {model.requiresApiKey && !getModelAvailability(model) && (
+                    {!getModelAvailability(model) && (
                       <Badge variant="outline" className="ml-2 text-xs">Requires API Key</Badge>
                     )}
                   </div>
